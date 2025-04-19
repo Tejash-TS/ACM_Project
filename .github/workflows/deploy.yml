@@ -21,8 +21,8 @@ jobs:
 
     - name: Upload and Deploy WAR
       run: |
-        # Upload WAR to EC2
-        scp -o StrictHostKeyChecking=no -i key.pem path/to/ACM-W.war ${{ secrets.EC2_USER }}@${{ secrets.EC2_HOST }}:/tmp/ACM-W.war
+        # Upload WAR to EC2 (replace ACM-W.war with the correct path if necessary)
+        scp -o StrictHostKeyChecking=no -i key.pem ACM-W.war ${{ secrets.EC2_USER }}@${{ secrets.EC2_HOST }}:/tmp/ACM-W.war
 
         # SSH into EC2 and deploy
         ssh -o StrictHostKeyChecking=no -i key.pem ${{ secrets.EC2_USER }}@${{ secrets.EC2_HOST }} << 'EOF'
