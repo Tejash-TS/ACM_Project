@@ -19,28 +19,26 @@ jobs:
         echo "${{ secrets.EC2_KEY }}" > key.pem
         chmod 400 key.pem
 
-    - name: Connect and install Java + Tomcat manually
+    - name: Install Java + Tomcat on EC2
       run: |
         ssh -o StrictHostKeyChecking=no -i key.pem ${{ secrets.EC2_USER }}@${{ secrets.EC2_HOST }} << 'EOF'
           sudo apt update -y
+          sudo apt install default-jdk -y
 
-          # Install Java
-          if ! java -version &>/dev/null; then
-            sudo apt install default-jdk -y
-          fi
+          # Install Tomcat manually
+          TOMCAT_VERSION=9.0.85
+          sudo rm -rf /opt/tomcat
+          wget https://archive.apache.org/dist/tomcat/tomcat-9/v${TOMCAT_VERSION}/bin/apache-tomcat-${TOMCAT_VERSION}.tar.gz -P /tmp
+          sudo mkdir -p /opt/tomcat
+          sudo tar xzvf /tmp/apache-tomcat-${TOMCAT_VERSION}.tar.gz -C /opt/tomcat --strip-components=1
 
-          # Manually install Tomcat9 if not installed
-          if [ ! -d "/opt/tomcat" ]; then
-            echo "Installing Tomcat 9 manually..."
-            TOMCAT_VERSION=9.0.86
-            wget https://dlcdn.apache.org/tomcat/tomcat-9/v${TOMCAT_VERSION}/bin/apache-tomcat-${TOMCAT_VERSION}.tar.gz -P /tmp
-            sudo mkdir -p /opt/tomcat
-            sudo tar xzvf /tmp/apache-tomcat-${TOMCAT_VERSION}.tar.gz -C /opt/tomcat --strip-components=1
-            sudo chmod +x /opt/tomcat/bin/*.sh
-            sudo nohup /opt/tomcat/bin/startup.sh &
-          else
-            echo "Tomcat already installed"
-          fi
+          sudo chmod +x /opt/tomcat/bin/*.sh
+
+          # Allow external access
+          sudo sed -i 's/<Connector port="8080"/<Connector address="0.0.0.0" port="8080"/' /opt/tomcat/conf/server.xml
+
+          # Start Tomcat
+          sudo nohup /opt/tomcat/bin/startup.sh &
         EOF
 
     - name: Upload and Deploy WAR
@@ -48,7 +46,7 @@ jobs:
         # Upload WAR
         scp -o StrictHostKeyChecking=no -i key.pem ACM-W.war ${{ secrets.EC2_USER }}@${{ secrets.EC2_HOST }}:/tmp/ACM-W.war
 
-        # Move and restart Tomcat
+        # Move WAR and restart Tomcat
         ssh -o StrictHostKeyChecking=no -i key.pem ${{ secrets.EC2_USER }}@${{ secrets.EC2_HOST }} << 'EOF'
           sudo mv /tmp/ACM-W.war /opt/tomcat/webapps/
           sudo /opt/tomcat/bin/shutdown.sh || true
