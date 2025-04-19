@@ -32,9 +32,10 @@ jobs:
           # Manually install Tomcat9 if not installed
           if [ ! -d "/opt/tomcat" ]; then
             echo "Installing Tomcat 9 manually..."
-            wget https://dlcdn.apache.org/tomcat/tomcat-9/v9.0.85/bin/apache-tomcat-9.0.85.tar.gz -P /tmp
+            TOMCAT_VERSION=9.0.86
+            wget https://dlcdn.apache.org/tomcat/tomcat-9/v${TOMCAT_VERSION}/bin/apache-tomcat-${TOMCAT_VERSION}.tar.gz -P /tmp
             sudo mkdir -p /opt/tomcat
-            sudo tar xzvf /tmp/apache-tomcat-9.0.85.tar.gz -C /opt/tomcat --strip-components=1
+            sudo tar xzvf /tmp/apache-tomcat-${TOMCAT_VERSION}.tar.gz -C /opt/tomcat --strip-components=1
             sudo chmod +x /opt/tomcat/bin/*.sh
             sudo nohup /opt/tomcat/bin/startup.sh &
           else
