@@ -1,0 +1,60 @@
+name: Full EC2 WAR Deployment
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  deploy:
+    name: Deploy to EC2
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v3
+
+    - name: Set up SSH Key
+      run: |
+        echo "${{ secrets.EC2_KEY }}" > key.pem
+        chmod 400 key.pem
+
+    - name: Connect to EC2 and deploy
+      run: |
+        ssh -o StrictHostKeyChecking=no -i key.pem ${{ secrets.EC2_USER }}@${{ secrets.EC2_HOST }} << 'EOF'
+          # Update system
+          sudo apt update -y
+
+          # Install Java if not installed
+          if ! java -version &>/dev/null; then
+            echo "Installing Java..."
+            sudo apt install default-jdk -y
+          fi
+
+          # Install Tomcat if not installed
+          if ! [ -d "/var/lib/tomcat9" ]; then
+            echo "Installing Tomcat..."
+            sudo apt install tomcat9 -y
+          fi
+
+          # Install Git if not installed
+          if ! git --version &>/dev/null; then
+            echo "Installing Git..."
+            sudo apt install git -y
+          fi
+
+          # Start Tomcat
+          sudo systemctl start tomcat9
+          sudo systemctl enable tomcat9
+        EOF
+
+    - name: Upload WAR to EC2 and Deploy
+      run: |
+        # Upload the WAR file
+        scp -o StrictHostKeyChecking=no -i key.pem ACM-W.war ${{ secrets.EC2_USER }}@${{ secrets.EC2_HOST }}:/tmp/ACM-W.war
+
+        # Move and restart Tomcat
+        ssh -o StrictHostKeyChecking=no -i key.pem ${{ secrets.EC2_USER }}@${{ secrets.EC2_HOST }} << 'EOF'
+          sudo mv /tmp/ACM-W.war /var/lib/tomcat9/webapps/
+          sudo systemctl restart tomcat9
+        EOF
